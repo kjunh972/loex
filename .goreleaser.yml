@@ -1,0 +1,125 @@
+version: 1
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+    - go test ./...
+
+builds:
+  - id: loex
+    binary: loex
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+    flags:
+      - -trimpath
+
+archives:
+  - id: loex
+    builds:
+      - loex
+    format: tar.gz
+    name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    files:
+      - README.md
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^refactor:'
+      - '^style:'
+      - Merge pull request
+      - Merge branch
+
+brews:
+  - name: loex
+    description: "Loex: Local Execution Manager CLI"
+    homepage: "https://github.com/kjunh972/loex"
+    license: "MIT"
+    
+    repository:
+      owner: kjunh972
+      name: homebrew-loex
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    
+    folder: Formula
+    
+    # Custom install script
+    install: |
+      bin.install "loex"
+      
+      # Install shell completions
+      generate_completions_from_executable(bin/"loex", "completion")
+    
+    # Test script
+    test: |
+      system "#{bin}/loex", "--version"
+      system "#{bin}/loex", "--help"
+    
+    # Dependencies
+    dependencies:
+      - name: go
+        type: build
+    
+    # Caveats shown after installation
+    caveats: |
+      Get started with Loex:
+        loex init myproject
+        loex config wizard myproject
+        loex start myproject
+      
+      For more information, run: loex --help
+
+release:
+  github:
+    owner: kjunh972
+    name: loex
+  
+  draft: false
+  prerelease: auto
+  
+  name_template: "{{.ProjectName}} v{{.Version}}"
+  
+  header: |
+    ## What's Changed
+    
+  footer: |
+    ## Installation
+    
+    ### Homebrew
+    ```bash
+    brew tap kjunh972/loex && brew install loex
+    ```
+    
+    ### Direct Download
+    Download the appropriate binary for your platform from the assets below.
+    
+    **Full Changelog**: https://github.com/kjunh972/loex/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+announce:
+  skip: true

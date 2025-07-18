@@ -45,6 +45,7 @@ snapshot:
 
 changelog:
   sort: asc
+  use: github
   filters:
     exclude:
       - '^docs:'
@@ -52,8 +53,31 @@ changelog:
       - '^ci:'
       - '^refactor:'
       - '^style:'
+      - '^chore:'
       - Merge pull request
       - Merge branch
+      - '^Initial commit'
+  groups:
+    - title: '🚀 New Features'
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: '🐛 Bug Fixes'
+      regexp: '^.*?(fix|bug)(\(.+\))??!?:.+$'
+      order: 1
+    - title: '⚡ Performance Improvements'
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 2
+    - title: '🔧 Improvements'
+      regexp: '^.*?(improve|enhance|update)(\(.+\))??!?:.+$'
+      order: 3
+    - title: '📚 Documentation'
+      regexp: '^.*?docs(\(.+\))??!?:.+$'
+      order: 4
+    - title: '🏗️ Build & CI'
+      regexp: '^.*?(build|ci)(\(.+\))??!?:.+$'
+      order: 5
+    - title: '🔄 Other Changes'
+      order: 999
 
 brews:
   - name: loex
@@ -106,20 +130,44 @@ release:
   name_template: "{{.ProjectName}} v{{.Version}}"
   
   header: |
-    ## What's Changed
+    ## 🎉 Loex {{.Version}} Release
+    
+    Thank you for using Loex! This release includes the following changes:
     
   footer: |
-    ## Installation
+    ## 📦 Installation
     
-    ### Homebrew
+    ### 🍺 Homebrew (Recommended)
     ```bash
     brew tap kjunh972/loex && brew install loex
     ```
     
-    ### Direct Download
-    Download the appropriate binary for your platform from the assets below.
+    ### 📥 Direct Download
+    Download the appropriate binary for your platform from the assets below:
+    - **macOS**: `loex-{{.Version}}-darwin-amd64.tar.gz` (Intel) / `loex-{{.Version}}-darwin-arm64.tar.gz` (Apple Silicon)
+    - **Linux**: `loex-{{.Version}}-linux-amd64.tar.gz` (x86_64) / `loex-{{.Version}}-linux-arm64.tar.gz` (ARM64)
+    
+    ### 🚀 Quick Start
+    ```bash
+    # Initialize a project
+    loex init myproject
+    
+    # Auto-detect services in current directory
+    loex detect myproject
+    
+    # Start all services
+    loex start myproject
+    ```
+    
+    ### 📋 What's Next?
+    - Check out the [documentation](https://github.com/kjunh972/loex/blob/main/README.md) for more examples
+    - Report issues or suggest features on [GitHub Issues](https://github.com/kjunh972/loex/issues)
     
     **Full Changelog**: https://github.com/kjunh972/loex/compare/{{ .PreviousTag }}...{{ .Tag }}
+    
+    ---
+    
+    💡 **Pro tip**: Use `loex -v` to check your current version and `loex --help` for all available commands!
 
 announce:
   skip: true

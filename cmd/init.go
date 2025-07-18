@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -18,6 +19,18 @@ var initCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		projectName := args[0]
 		
+		// Validate project name
+		if projectName == "" {
+			fmt.Printf("Project name cannot be empty\n")
+			os.Exit(1)
+		}
+		
+		// Check for invalid characters
+		if strings.ContainsAny(projectName, " \t\n\r/\\:<>|*?") {
+			fmt.Printf("Project name contains invalid characters. Use only letters, numbers, hyphens, and underscores.\n")
+			os.Exit(1)
+		}
+		
 		configManager, err := config.NewManager()
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
@@ -26,6 +39,7 @@ var initCmd = &cobra.Command{
 
 		if configManager.ProjectExists(projectName) {
 			fmt.Printf("Project '%s' already exists\n", projectName)
+			fmt.Printf("Use 'loex list' to see all projects\n")
 			os.Exit(1)
 		}
 

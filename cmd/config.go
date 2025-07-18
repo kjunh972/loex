@@ -19,9 +19,123 @@ var (
 )
 
 var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Manage project configuration",
-	Long:  `Configure services for projects. Use subcommands to set, get, or interactively configure services.`,
+	Use:   "config [project] [service] [command]",
+	Short: "Configure project services",
+	Long:  `Configure services for projects. You can set service configurations directly or use subcommands.`,
+	Args:  cobra.RangeArgs(0, 3),
+	Run: func(cmd *cobra.Command, args []string) {
+		// If no args, show help
+		if len(args) == 0 {
+			cmd.Help()
+			return
+		}
+		
+		// If less than 3 args, show usage
+		if len(args) < 3 {
+			fmt.Printf("Usage: loex config [project] [service] [command]\n")
+			fmt.Printf("Services: frontend, backend, db\n")
+			fmt.Printf("Example: loex config myproject backend \"./gradlew bootRun\"\n")
+			fmt.Printf("\nOr use subcommands:\n")
+			fmt.Printf("  loex config set [project] [service] [command]\n")
+			fmt.Printf("  loex config wizard [project]\n")
+			return
+		}
+		
+		// Execute the same logic as configSetCmd
+		projectName := args[0]
+		serviceTypeStr := args[1]
+		command := args[2]
+		
+		// Validate service type
+		serviceType := models.ServiceType(serviceTypeStr)
+		if serviceType != models.ServiceFrontend && serviceType != models.ServiceBackend && serviceType != models.ServiceDB {
+			fmt.Printf("Invalid service type '%s'. Use: frontend, backend, db\n", serviceTypeStr)
+			fmt.Printf("Example: loex config %s db \"brew services start mysql@8.0\"\n", projectName)
+			os.Exit(1)
+		}
+		
+		configManager, err := config.NewManager()
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Load or create project
+		var project *models.Project
+		if configManager.ProjectExists(projectName) {
+			project, err = configManager.LoadProject(projectName)
+			if err != nil {
+				fmt.Printf("Failed to load project: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			project = &models.Project{
+				Name:     projectName,
+				Services: make(map[models.ServiceType]models.Service),
+				Created:  time.Now(),
+				Updated:  time.Now(),
+			}
+		}
+
+		// Determine directory
+		var serviceDir string
+		if dirFlag != "" {
+			absDir, err := filepath.Abs(dirFlag)
+			if err != nil {
+				fmt.Printf("Invalid directory path: %v\n", err)
+				os.Exit(1)
+			}
+			serviceDir = absDir
+		} else {
+			cwd, err := os.Getwd()
+			if err != nil {
+				fmt.Printf("Failed to get current directory: %v\n", err)
+				os.Exit(1)
+			}
+			serviceDir = cwd
+		}
+
+		// Check if directory exists
+		if _, err := os.Stat(serviceDir); os.IsNotExist(err) {
+			fmt.Printf("Directory does not exist: %s\n", serviceDir)
+			os.Exit(1)
+		}
+
+		// Show configuration summary and ask for confirmation
+		fmt.Printf("\nConfiguration Summary:\n")
+		fmt.Printf("  Project: %s\n", projectName)
+		fmt.Printf("  Service: %s\n", serviceType)
+		fmt.Printf("  Command: %s\n", command)
+		fmt.Printf("  Directory: %s\n", serviceDir)
+		fmt.Print("\nSave this configuration? (Y/n): ")
+
+		reader := bufio.NewReader(os.Stdin)
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("Error reading input: %v\n", err)
+			os.Exit(1)
+		}
+
+		response = strings.TrimSpace(strings.ToLower(response))
+		if response != "" && response != "y" && response != "yes" {
+			fmt.Printf("Configuration cancelled\n")
+			os.Exit(0)
+		}
+
+		// Save service configuration
+		project.Services[serviceType] = models.Service{
+			Type:    serviceType,
+			Command: command,
+			Dir:     serviceDir,
+		}
+
+		if err := configManager.SaveProject(project); err != nil {
+			fmt.Printf("Failed to save project: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Service '%s' configured for project '%s'\n", serviceType, projectName)
+	},
 }
 
 var configSetCmd = &cobra.Command{
@@ -32,6 +146,13 @@ Services: frontend, backend, db
 If --dir is not specified, current directory is used.`,
 	Args: cobra.RangeArgs(2, 3),
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) < 3 {
+			fmt.Printf("Usage: loex config set [project] [service] [command]\n")
+			fmt.Printf("Services: frontend, backend, db\n")
+			fmt.Printf("Example: loex config set test1 db \"brew services start mysql@8.0\"\n")
+			os.Exit(1)
+		}
+		
 		projectName := args[0]
 		serviceTypeStr := args[1]
 		
@@ -39,6 +160,7 @@ If --dir is not specified, current directory is used.`,
 		serviceType := models.ServiceType(serviceTypeStr)
 		if serviceType != models.ServiceFrontend && serviceType != models.ServiceBackend && serviceType != models.ServiceDB {
 			fmt.Printf("Invalid service type '%s'. Use: frontend, backend, db\n", serviceTypeStr)
+			fmt.Printf("Example: loex config set %s db \"brew services start mysql@8.0\"\n", projectName)
 			os.Exit(1)
 		}
 
@@ -89,10 +211,10 @@ If --dir is not specified, current directory is used.`,
 			os.Exit(1)
 		}
 
-		var command string
-		if len(args) == 3 {
-			command = args[2]
-		} else {
+		command := args[2]
+		
+		// If no command provided, try auto-detection
+		if command == "" {
 			// Auto-detect command
 			detector := detector.New()
 			results, err := detector.DetectServices(serviceDir)
@@ -146,6 +268,27 @@ If --dir is not specified, current directory is used.`,
 			os.Exit(1)
 		}
 
+		// Show configuration summary and ask for confirmation
+		fmt.Printf("\nConfiguration Summary:\n")
+		fmt.Printf("  Project: %s\n", projectName)
+		fmt.Printf("  Service: %s\n", serviceType)
+		fmt.Printf("  Command: %s\n", command)
+		fmt.Printf("  Directory: %s\n", serviceDir)
+		fmt.Print("\nSave this configuration? (Y/n): ")
+
+		reader := bufio.NewReader(os.Stdin)
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("Error reading input: %v\n", err)
+			os.Exit(1)
+		}
+
+		response = strings.TrimSpace(strings.ToLower(response))
+		if response != "" && response != "y" && response != "yes" {
+			fmt.Printf("Configuration cancelled\n")
+			os.Exit(0)
+		}
+
 		// Save service configuration
 		project.Services[serviceType] = models.Service{
 			Type:    serviceType,
@@ -159,8 +302,6 @@ If --dir is not specified, current directory is used.`,
 		}
 
 		fmt.Printf("Service '%s' configured for project '%s'\n", serviceType, projectName)
-		fmt.Printf("   Command: %s\n", command)
-		fmt.Printf("   Directory: %s\n", serviceDir)
 	},
 }
 

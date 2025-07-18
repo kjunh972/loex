@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/kjunh972/loex/internal/config"
@@ -60,16 +61,25 @@ var startCmd = &cobra.Command{
 			}
 			servicesToStart = []models.ServiceType{serviceType}
 		} else {
-			// Start all services
-			for serviceType := range project.Services {
-				servicesToStart = append(servicesToStart, serviceType)
+			// Start all services in proper order: DB → Backend → Frontend
+			serviceOrder := []models.ServiceType{models.ServiceDB, models.ServiceBackend, models.ServiceFrontend}
+			for _, serviceType := range serviceOrder {
+				if _, exists := project.Services[serviceType]; exists {
+					servicesToStart = append(servicesToStart, serviceType)
+				}
 			}
 		}
 
 		var errors []string
-		for _, serviceType := range servicesToStart {
+		for i, serviceType := range servicesToStart {
 			if err := processManager.StartService(projectName, serviceType); err != nil {
 				errors = append(errors, fmt.Sprintf("%s: %v", serviceType, err))
+			} else {
+				// Add delay between services to ensure proper startup order
+				if i < len(servicesToStart)-1 {
+					fmt.Printf("Waiting for %s to start...\n", serviceType)
+					time.Sleep(3 * time.Second)
+				}
 			}
 		}
 

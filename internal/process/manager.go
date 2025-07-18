@@ -57,15 +57,25 @@ func (m *Manager) StartService(projectName string, serviceType models.ServiceTyp
 	if err != nil {
 		return fmt.Errorf("failed to create log file: %w", err)
 	}
-	defer logFile.Close()
+	// Don't defer close - let the process keep the file open
 
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 
+	// Set process group ID and detach from parent for better process management
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+		Setsid:  true, // Create new session to detach from parent
+	}
+
 	// Start the process
 	if err := cmd.Start(); err != nil {
+		logFile.Close() // Close only if start fails
 		return fmt.Errorf("failed to start service %s: %w", serviceType, err)
 	}
+
+	// Don't wait for the process - let it run in background
+	// The process will continue running independently
 
 	// Save PID
 	if err := m.savePID(projectName, serviceType, cmd.Process.Pid, service.Command); err != nil {
@@ -97,16 +107,21 @@ func (m *Manager) StopService(projectName string, serviceType models.ServiceType
 		return fmt.Errorf("process %d is not running", processInfo.PID)
 	}
 
-	// Kill the process
-	process, err := os.FindProcess(processInfo.PID)
+	// Kill the process group (to handle child processes like gradlew)
+	pgid, err := syscall.Getpgid(processInfo.PID)
 	if err != nil {
-		return fmt.Errorf("failed to find process %d: %w", processInfo.PID, err)
-	}
-
-	if err := process.Signal(syscall.SIGTERM); err != nil {
-		// Try SIGKILL if SIGTERM fails
-		if err := process.Kill(); err != nil {
-			return fmt.Errorf("failed to kill process %d: %w", processInfo.PID, err)
+		// Fallback to individual process
+		process, err := os.FindProcess(processInfo.PID)
+		if err != nil {
+			return fmt.Errorf("failed to find process %d: %w", processInfo.PID, err)
+		}
+		if err := process.Signal(syscall.SIGTERM); err != nil {
+			process.Kill()
+		}
+	} else {
+		// Kill the entire process group
+		if err := syscall.Kill(-pgid, syscall.SIGTERM); err != nil {
+			syscall.Kill(-pgid, syscall.SIGKILL)
 		}
 	}
 

@@ -62,10 +62,10 @@ func (m *Manager) StartService(projectName string, serviceType models.ServiceTyp
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 
-	// Set process group ID and detach from parent for better process management
+	// Set process group ID for better process management
+	// Note: Setsid can cause "operation not permitted" on macOS, using Setpgid instead
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-		Setsid:  true, // Create new session to detach from parent
+		Setpgid: true, // Create new process group (safer than Setsid)
 	}
 
 	// Start the process
@@ -108,6 +108,7 @@ func (m *Manager) StopService(projectName string, serviceType models.ServiceType
 	}
 
 	// Kill the process group (to handle child processes like gradlew)
+	// Note: Setsid creates a new session with its own process group
 	pgid, err := syscall.Getpgid(processInfo.PID)
 	if err != nil {
 		// Fallback to individual process

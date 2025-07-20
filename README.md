@@ -40,7 +40,7 @@ loex init myproject
 ```bash
 # Option A: Auto-detect services in current directory
 cd /path/to/your/project
-loex detect myproject
+loex config detect myproject
 
 # Option B: Interactive wizard
 loex config wizard myproject
@@ -96,7 +96,7 @@ loex rename [old-name] [new-name]
 
 ```bash
 # Auto-detect services in current directory
-loex detect [project-name]
+loex config detect [project-name]
 
 # Interactive configuration wizard
 loex config wizard [project-name]
@@ -117,13 +117,19 @@ loex config myapp db "docker-compose up -d"
 loex start [project-name]
 
 # Start specific service
-loex start [project-name] --service frontend
+loex start [project-name] [service-name]
+
+# Examples:
+loex start myapp              # Start all services
+loex start myapp frontend     # Start only frontend
+loex start myapp backend      # Start only backend
+loex start myapp db           # Start only database
 
 # Stop all services
 loex stop [project-name]
 
 # Stop specific service
-loex stop [project-name] --service backend
+loex stop [project-name] [service-name]
 
 # Check service status
 loex status [project-name]
@@ -131,7 +137,7 @@ loex status [project-name]
 
 ## 🔍 Auto-Detection
 
-Loex automatically detects common project types and suggests appropriate commands when using the `detect` or `wizard` commands.
+Loex automatically detects common project types and suggests appropriate commands when using the `config detect` or `config wizard` commands.
 
 **💡 Important**: Run the command from your project's root directory to enable auto-detection. Loex analyzes files in the current directory to suggest the best commands for each service type.
 
@@ -180,7 +186,7 @@ loex start webapp
 ```bash
 # Use auto-detection (run from project root directory)
 cd /path/to/your/project
-loex detect ecommerce
+loex config detect ecommerce
 
 # Or use wizard for interactive setup
 loex config wizard ecommerce

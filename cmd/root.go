@@ -67,7 +67,6 @@ func init() {
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(renameCmd)
 	rootCmd.AddCommand(configCmd)
-	rootCmd.AddCommand(detectCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(updateCmd)
 	

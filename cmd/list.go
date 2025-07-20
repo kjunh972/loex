@@ -92,15 +92,9 @@ var listCmd = &cobra.Command{
 
 			serviceCount := len(project.Services)
 			fmt.Printf("  %s (%d service(s))\n", projectName, serviceCount)
-			
-			if serviceCount > 0 {
-				for serviceType := range project.Services {
-					fmt.Printf("    - %s\n", serviceType)
-				}
-			}
-			fmt.Println()
 		}
 
+		fmt.Println()
 		fmt.Printf("Use 'loex list [project]' to see detailed configuration\n")
 		fmt.Printf("Use 'loex status [project]' to check service status\n")
 		fmt.Printf("Use 'loex start [project]' to start services\n")

@@ -17,10 +17,10 @@ var (
 )
 
 var startCmd = &cobra.Command{
-	Use:   "start [project]",
+	Use:   "start [project] [service]",
 	Short: "Start services for a project",
-	Long:  `Start all services (frontend, backend, database) for the specified project, or start a specific service with --service flag.`,
-	Args:  cobra.ExactArgs(1),
+	Long:  `Start all services (frontend, backend, database) for the specified project, or start a specific service by providing the service name.`,
+	Args:  cobra.RangeArgs(1, 2),
 	Run: func(cmd *cobra.Command, args []string) {
 		projectName := args[0]
 		
@@ -51,12 +51,20 @@ var startCmd = &cobra.Command{
 		}
 
 		var servicesToStart []models.ServiceType
+		var specificService string
 
-		if serviceFlag != "" {
+		// Check if specific service is provided as argument or flag
+		if len(args) == 2 {
+			specificService = args[1]
+		} else if serviceFlag != "" {
+			specificService = serviceFlag
+		}
+
+		if specificService != "" {
 			// Start specific service
-			serviceType := models.ServiceType(serviceFlag)
+			serviceType := models.ServiceType(specificService)
 			if _, exists := project.Services[serviceType]; !exists {
-				fmt.Printf("Service '%s' not configured for project '%s'\n", serviceFlag, projectName)
+				fmt.Printf("Service '%s' not configured for project '%s'\n", specificService, projectName)
 				os.Exit(1)
 			}
 			servicesToStart = []models.ServiceType{serviceType}
@@ -91,8 +99,8 @@ var startCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if serviceFlag != "" {
-			fmt.Printf("Service '%s' started successfully for project '%s'\n", serviceFlag, projectName)
+		if specificService != "" {
+			fmt.Printf("Service '%s' started successfully for project '%s'\n", specificService, projectName)
 		} else {
 			fmt.Printf("All services started successfully for project '%s'\n", projectName)
 		}

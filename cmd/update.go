@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/kjunh972/loex/internal/updater"
@@ -43,7 +44,15 @@ var updateCmd = &cobra.Command{
 		fmt.Printf("Updating to version %s...\n", latestVersion)
 		
 		if err := updater.Update(latestVersion); err != nil {
-			fmt.Printf("Failed to update: %v\n", err)
+			if strings.Contains(err.Error(), "permission denied") {
+				fmt.Printf("Update failed due to permission restrictions.\n")
+				fmt.Printf("For Homebrew installations, please use:\n")
+				fmt.Printf("  brew update && brew upgrade loex\n")
+				fmt.Printf("\nAlternatively, run with sudo (not recommended):\n")
+				fmt.Printf("  sudo loex update\n")
+			} else {
+				fmt.Printf("Failed to update: %v\n", err)
+			}
 			os.Exit(1)
 		}
 

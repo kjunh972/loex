@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -26,17 +27,14 @@ type DetectionResult struct {
 func (d *ServiceDetector) DetectServices(dir string) ([]DetectionResult, error) {
 	var results []DetectionResult
 
-	// Check for frontend services
 	if frontend := d.detectFrontend(dir); frontend != nil {
 		results = append(results, *frontend)
 	}
 
-	// Check for backend services
 	if backend := d.detectBackend(dir); backend != nil {
 		results = append(results, *backend)
 	}
 
-	// Check for database services
 	if db := d.detectDatabase(dir); db != nil {
 		results = append(results, *db)
 	}
@@ -61,10 +59,8 @@ func (d *ServiceDetector) detectFrontend(dir string) *DetectionResult {
 		return nil
 	}
 
-	// Check dependencies
 	deps := extractDependencies(packageJSON)
 	
-	// React detection
 	if contains(deps, "react") {
 		if contains(deps, "react-native") {
 			return &DetectionResult{
@@ -80,7 +76,6 @@ func (d *ServiceDetector) detectFrontend(dir string) *DetectionResult {
 		}
 	}
 
-	// Vue detection
 	if contains(deps, "vue") {
 		return &DetectionResult{
 			Service:         models.ServiceFrontend,
@@ -89,7 +84,6 @@ func (d *ServiceDetector) detectFrontend(dir string) *DetectionResult {
 		}
 	}
 
-	// Angular detection
 	if contains(deps, "@angular/core") {
 		return &DetectionResult{
 			Service:         models.ServiceFrontend,
@@ -98,7 +92,6 @@ func (d *ServiceDetector) detectFrontend(dir string) *DetectionResult {
 		}
 	}
 
-	// Next.js detection
 	if contains(deps, "next") {
 		return &DetectionResult{
 			Service:         models.ServiceFrontend,
@@ -107,7 +100,6 @@ func (d *ServiceDetector) detectFrontend(dir string) *DetectionResult {
 		}
 	}
 
-	// Generic Node.js frontend
 	if scripts, ok := packageJSON["scripts"].(map[string]interface{}); ok {
 		if _, hasStart := scripts["start"]; hasStart {
 			return &DetectionResult{
@@ -129,7 +121,6 @@ func (d *ServiceDetector) detectFrontend(dir string) *DetectionResult {
 }
 
 func (d *ServiceDetector) detectBackend(dir string) *DetectionResult {
-	// Go detection
 	if fileExists(filepath.Join(dir, "go.mod")) {
 		if fileExists(filepath.Join(dir, "main.go")) {
 			return &DetectionResult{
@@ -145,7 +136,6 @@ func (d *ServiceDetector) detectBackend(dir string) *DetectionResult {
 		}
 	}
 
-	// Java detection
 	if fileExists(filepath.Join(dir, "pom.xml")) {
 		return &DetectionResult{
 			Service:         models.ServiceBackend,
@@ -162,7 +152,6 @@ func (d *ServiceDetector) detectBackend(dir string) *DetectionResult {
 		}
 	}
 
-	// Python detection
 	if fileExists(filepath.Join(dir, "requirements.txt")) || fileExists(filepath.Join(dir, "pyproject.toml")) {
 		if fileExists(filepath.Join(dir, "manage.py")) {
 			return &DetectionResult{
@@ -180,7 +169,6 @@ func (d *ServiceDetector) detectBackend(dir string) *DetectionResult {
 		}
 	}
 
-	// Rust detection
 	if fileExists(filepath.Join(dir, "Cargo.toml")) {
 		return &DetectionResult{
 			Service:         models.ServiceBackend,
@@ -189,7 +177,6 @@ func (d *ServiceDetector) detectBackend(dir string) *DetectionResult {
 		}
 	}
 
-	// JAR file detection
 	jarFiles, _ := filepath.Glob(filepath.Join(dir, "*.jar"))
 	if len(jarFiles) > 0 {
 		return &DetectionResult{
@@ -203,7 +190,6 @@ func (d *ServiceDetector) detectBackend(dir string) *DetectionResult {
 }
 
 func (d *ServiceDetector) detectDatabase(dir string) *DetectionResult {
-	// Docker Compose detection
 	if fileExists(filepath.Join(dir, "docker-compose.yml")) || fileExists(filepath.Join(dir, "docker-compose.yaml")) {
 		return &DetectionResult{
 			Service:         models.ServiceDB,
@@ -212,7 +198,6 @@ func (d *ServiceDetector) detectDatabase(dir string) *DetectionResult {
 		}
 	}
 
-	// Dockerfile detection
 	if fileExists(filepath.Join(dir, "Dockerfile")) {
 		return &DetectionResult{
 			Service:         models.ServiceDB,
@@ -221,19 +206,22 @@ func (d *ServiceDetector) detectDatabase(dir string) *DetectionResult {
 		}
 	}
 
-	// System database services
 	if runtime.GOOS == "darwin" {
-		return &DetectionResult{
-			Service:         models.ServiceDB,
-			Command:         "brew services start mysql",
-			DetectionReason: "Default MySQL service for macOS",
+		if dbService := d.detectBrewDatabaseServices(); dbService != nil {
+			return dbService
 		}
-	} else if runtime.GOOS == "linux" {
-		return &DetectionResult{
-			Service:         models.ServiceDB,
-			Command:         "sudo systemctl start mysql",
-			DetectionReason: "Default MySQL service for Linux",
+	}
+
+	if d.hasDBConfigFiles(dir) {
+		fmt.Println("\nDatabase configuration detected but no database service found.")
+		if runtime.GOOS == "darwin" {
+			fmt.Println("To install MySQL:")
+			fmt.Println("  brew install mysql")
+		} else {
+			fmt.Println("To install MySQL via Docker:")
+			fmt.Println("  docker pull mysql:8.0")
 		}
+		fmt.Println("Then run 'loex config detect' again to register the database service.")
 	}
 
 	return nil
@@ -269,4 +257,83 @@ func contains(slice []string, item string) bool {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+func (d *ServiceDetector) detectBrewDatabaseServices() *DetectionResult {
+	cmd := exec.Command("brew", "services", "list")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		
+		serviceName := fields[0]
+		
+		if strings.Contains(serviceName, "mysql") {
+			return &DetectionResult{
+				Service:         models.ServiceDB,
+				Command:         fmt.Sprintf("brew services start %s", serviceName),
+				DetectionReason: fmt.Sprintf("Detected %s via Homebrew", serviceName),
+			}
+		}
+		
+		if strings.Contains(serviceName, "postgresql") || strings.Contains(serviceName, "postgres") {
+			return &DetectionResult{
+				Service:         models.ServiceDB,
+				Command:         fmt.Sprintf("brew services start %s", serviceName),
+				DetectionReason: fmt.Sprintf("Detected %s via Homebrew", serviceName),
+			}
+		}
+	}
+	
+	return nil
+}
+
+func (d *ServiceDetector) hasDBConfigFiles(dir string) bool {
+	configFiles := []string{
+		"application.properties",
+		"application.yml",
+		"application.yaml",
+		"database.yml",
+		"database.yaml",
+		"config/database.yml",
+		"prisma/schema.prisma",
+		"knexfile.js",
+		"sequelize.js",
+		"typeorm.config.js",
+		"ormconfig.json",
+	}
+	
+	for _, configFile := range configFiles {
+		if fileExists(filepath.Join(dir, configFile)) {
+			content, err := os.ReadFile(filepath.Join(dir, configFile))
+			if err == nil && d.hasDBConfig(string(content)) {
+				return true
+			}
+		}
+	}
+	
+	return false
+}
+
+func (d *ServiceDetector) hasDBConfig(content string) bool {
+	content = strings.ToLower(content)
+	dbKeywords := []string{
+		"jdbc:", "mysql", "postgres", "mongodb", "database_url",
+		"db_host", "db_port", "datasource", "connection_string",
+	}
+	
+	for _, keyword := range dbKeywords {
+		if strings.Contains(content, keyword) {
+			return true
+		}
+	}
+	
+	return false
 }

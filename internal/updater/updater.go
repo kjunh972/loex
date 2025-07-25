@@ -60,7 +60,6 @@ func (u *Updater) CheckForUpdate(currentVersion string) (bool, string, error) {
 
 	latestVersion := strings.TrimPrefix(release.TagName, "v")
 	
-	// Skip version comparison if current version is "dev"
 	if currentVersion == "dev" {
 		return true, latestVersion, nil
 	}
@@ -79,16 +78,13 @@ func (u *Updater) CheckForUpdate(currentVersion string) (bool, string, error) {
 }
 
 func (u *Updater) Update(targetVersion string) error {
-	// Get current executable path
 	execPath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to get executable path: %v", err)
 	}
 
-	// Determine the asset name based on OS and architecture
 	assetName := u.getAssetName(targetVersion)
 	
-	// Download the new version
 	downloadURL := fmt.Sprintf("https://github.com/%s/%s/releases/download/v%s/%s", 
 		u.owner, u.repo, targetVersion, assetName)
 	
@@ -98,14 +94,12 @@ func (u *Updater) Update(targetVersion string) error {
 	}
 	defer os.Remove(tempFile)
 
-	// Extract the binary
 	binaryPath, err := u.extractBinary(tempFile)
 	if err != nil {
 		return fmt.Errorf("failed to extract binary: %v", err)
 	}
 	defer os.Remove(binaryPath)
 
-	// Replace the current executable
 	if err := u.replaceExecutable(execPath, binaryPath); err != nil {
 		return fmt.Errorf("failed to replace executable: %v", err)
 	}
@@ -131,14 +125,12 @@ func (u *Updater) downloadFile(url string) (string, error) {
 		return "", fmt.Errorf("failed to download file: status %d", resp.StatusCode)
 	}
 
-	// Create temporary file
 	tempFile, err := os.CreateTemp("", "loex-update-*.tar.gz")
 	if err != nil {
 		return "", err
 	}
 	defer tempFile.Close()
 
-	// Copy the response body to the temporary file
 	_, err = io.Copy(tempFile, resp.Body)
 	if err != nil {
 		os.Remove(tempFile.Name())
@@ -172,23 +164,19 @@ func (u *Updater) extractBinary(tarGzPath string) (string, error) {
 			return "", err
 		}
 
-		// Look for the loex binary
 		if header.Name == "loex" || filepath.Base(header.Name) == "loex" {
-			// Create temporary file for the binary
 			tempBinary, err := os.CreateTemp("", "loex-binary-*")
 			if err != nil {
 				return "", err
 			}
 			defer tempBinary.Close()
 
-			// Copy the binary content
 			_, err = io.Copy(tempBinary, tarReader)
 			if err != nil {
 				os.Remove(tempBinary.Name())
 				return "", err
 			}
 
-			// Make it executable
 			if err := os.Chmod(tempBinary.Name(), 0755); err != nil {
 				os.Remove(tempBinary.Name())
 				return "", err
@@ -202,21 +190,17 @@ func (u *Updater) extractBinary(tarGzPath string) (string, error) {
 }
 
 func (u *Updater) replaceExecutable(currentPath, newPath string) error {
-	// Create a backup of the current executable
 	backupPath := currentPath + ".backup"
 	if err := u.copyFile(currentPath, backupPath); err != nil {
 		return fmt.Errorf("failed to create backup: %v", err)
 	}
 
-	// Replace the current executable with the new one
 	if err := u.copyFile(newPath, currentPath); err != nil {
-		// Restore backup if replacement fails
 		u.copyFile(backupPath, currentPath)
 		os.Remove(backupPath)
 		return fmt.Errorf("failed to replace executable: %v", err)
 	}
 
-	// Remove backup
 	os.Remove(backupPath)
 
 	return nil
@@ -240,7 +224,6 @@ func (u *Updater) copyFile(src, dst string) error {
 		return err
 	}
 
-	// Copy permissions
 	sourceInfo, err := sourceFile.Stat()
 	if err != nil {
 		return err

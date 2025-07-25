@@ -46,14 +46,16 @@ var startCmd = &cobra.Command{
 
 		if len(project.Services) == 0 {
 			fmt.Printf("No services configured for project '%s'\n", projectName)
-			fmt.Printf("Use 'loex config wizard %s' to configure services\n", projectName)
+			fmt.Printf("Configure services first:\n")
+			fmt.Printf("  loex config detect %s    # Auto-detect (recommended)\n", projectName)
+			fmt.Printf("  loex config wizard %s    # Interactive setup\n", projectName)
+			fmt.Printf("  loex config %s [service] [command]    # Manual setup\n", projectName)
 			os.Exit(1)
 		}
 
 		var servicesToStart []models.ServiceType
 		var specificService string
 
-		// Check if specific service is provided as argument or flag
 		if len(args) == 2 {
 			specificService = args[1]
 		} else if serviceFlag != "" {
@@ -61,7 +63,6 @@ var startCmd = &cobra.Command{
 		}
 
 		if specificService != "" {
-			// Start specific service
 			serviceType := models.ServiceType(specificService)
 			if _, exists := project.Services[serviceType]; !exists {
 				fmt.Printf("Service '%s' not configured for project '%s'\n", specificService, projectName)
@@ -69,7 +70,6 @@ var startCmd = &cobra.Command{
 			}
 			servicesToStart = []models.ServiceType{serviceType}
 		} else {
-			// Start all services in proper order: DB → Backend → Frontend
 			serviceOrder := []models.ServiceType{models.ServiceDB, models.ServiceBackend, models.ServiceFrontend}
 			for _, serviceType := range serviceOrder {
 				if _, exists := project.Services[serviceType]; exists {
@@ -83,7 +83,6 @@ var startCmd = &cobra.Command{
 			if err := processManager.StartService(projectName, serviceType); err != nil {
 				errors = append(errors, fmt.Sprintf("%s: %v", serviceType, err))
 			} else {
-				// Add delay between services to ensure proper startup order
 				if i < len(servicesToStart)-1 {
 					fmt.Printf("Waiting for %s to start...\n", serviceType)
 					time.Sleep(3 * time.Second)

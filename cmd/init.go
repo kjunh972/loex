@@ -19,13 +19,11 @@ var initCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		projectName := args[0]
 		
-		// Validate project name
 		if projectName == "" {
 			fmt.Printf("Project name cannot be empty\n")
 			os.Exit(1)
 		}
 		
-		// Check for invalid characters
 		if strings.ContainsAny(projectName, " \t\n\r/\\:<>|*?") {
 			fmt.Printf("Project name contains invalid characters. Use only letters, numbers, hyphens, and underscores.\n")
 			os.Exit(1)
@@ -56,8 +54,13 @@ var initCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Project '%s' initialized successfully\n", projectName)
-		fmt.Printf("Next steps:\n")
-		fmt.Printf("   - Use 'loex config wizard %s' for interactive setup\n", projectName)
-		fmt.Printf("   - Or use 'loex config set %s [service] [command]' to configure services\n", projectName)
+		fmt.Printf("Next steps - Configure Services:\n\n")
+		fmt.Printf("Auto-detect services (recommended):\n")
+		fmt.Printf("  cd /path/to/your/project\n")
+		fmt.Printf("  loex config detect %s\n\n", projectName)
+		fmt.Printf("Interactive setup:\n")
+		fmt.Printf("  loex config wizard %s\n\n", projectName)
+		fmt.Printf("Manual configuration:\n")
+		fmt.Printf("  loex config %s [service] [command]\n", projectName)
 	},
 }

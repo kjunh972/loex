@@ -34,7 +34,6 @@ var stopCmd = &cobra.Command{
 		processManager := process.NewManager(configManager, loggerManager)
 
 		if serviceFlag != "" {
-			// Stop specific service
 			serviceType := models.ServiceType(serviceFlag)
 			if err := processManager.StopService(projectName, serviceType); err != nil {
 				fmt.Printf("Failed to stop service '%s': %v\n", serviceFlag, err)
@@ -42,7 +41,6 @@ var stopCmd = &cobra.Command{
 			}
 			fmt.Printf("Service '%s' stopped for project '%s'\n", serviceFlag, projectName)
 		} else {
-			// Stop all services
 			if err := processManager.StopAllServices(projectName); err != nil {
 				fmt.Printf("Failed to stop services: %v\n", err)
 				os.Exit(1)

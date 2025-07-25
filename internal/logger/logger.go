@@ -36,7 +36,6 @@ func (m *Manager) GetLogFile(projectName string, serviceType models.ServiceType)
 		return nil, fmt.Errorf("failed to open log file: %w", err)
 	}
 
-	// Write timestamp header
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	fmt.Fprintf(file, "\n=== %s Service Started at %s ===\n", serviceType, timestamp)
 
@@ -51,7 +50,7 @@ func (m *Manager) ClearLogs(projectName string, serviceType models.ServiceType) 
 	logPath := m.GetLogPath(projectName, serviceType)
 	
 	if _, err := os.Stat(logPath); os.IsNotExist(err) {
-		return nil // No log file to clear
+		return nil
 	}
 
 	return os.Truncate(logPath, 0)
@@ -63,7 +62,7 @@ func (m *Manager) ClearAllLogs(projectName string) error {
 	files, err := os.ReadDir(logsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil // No logs directory
+			return nil
 		}
 		return fmt.Errorf("failed to read logs directory: %w", err)
 	}

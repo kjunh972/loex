@@ -22,7 +22,6 @@ var listCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// If specific project is requested
 		if len(args) == 1 {
 			projectName := args[0]
 			project, err := configManager.LoadProject(projectName)
@@ -37,18 +36,15 @@ var listCmd = &cobra.Command{
 			fmt.Printf("Services: %d\n\n", len(project.Services))
 
 			if len(project.Services) > 0 {
-				// Initialize process manager to check service status
 				logManager := logger.NewManager(configManager)
 				processManager := process.NewManager(configManager, logManager)
 				
 				for serviceType, service := range project.Services {
-					// Get service status
 					status, err := processManager.GetServiceStatus(projectName, serviceType)
 					if err != nil {
 						status = "unknown"
 					}
 					
-					// Format status with indicator
 					var statusDisplay string
 					switch status {
 					case "running":
@@ -68,7 +64,6 @@ var listCmd = &cobra.Command{
 			return
 		}
 
-		// List all projects
 		projects, err := configManager.ListProjects()
 		if err != nil {
 			fmt.Printf("Failed to list projects: %v\n", err)

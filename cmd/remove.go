@@ -34,7 +34,6 @@ var removeCmd = &cobra.Command{
 		}
 
 		if !forceFlag {
-			// Ask for confirmation
 			fmt.Printf(" Are you sure you want to remove project '%s'?\n", projectName)
 			fmt.Printf("   This will delete all configuration, logs, and PID files.\n")
 			fmt.Printf("   This action cannot be undone.\n\n")

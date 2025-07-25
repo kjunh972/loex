@@ -18,7 +18,6 @@ var updateCmd = &cobra.Command{
 		
 		updater := updater.New()
 		
-		// Check for updates
 		hasUpdate, latestVersion, err := updater.CheckForUpdate(version)
 		if err != nil {
 			fmt.Printf("Failed to check for updates: %v\n", err)

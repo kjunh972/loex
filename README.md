@@ -38,15 +38,12 @@ loex init myproject
 ### 2. Configure Services
 
 ```bash
-# Option A: Auto-detect services in current directory
+# Auto-detect services (recommended)
 cd /path/to/your/project
 loex config detect myproject
 
-# Option B: Interactive wizard
+# Interactive wizard
 loex config wizard myproject
-
-# Option C: Manual configuration
-loex config myproject frontend "npm start"
 ```
 
 ### 3. Start All Services
@@ -73,6 +70,32 @@ loex stop myproject
 
 ## 📚 Command Reference
 
+### 📋 현재 지원하는 전체 명령어
+
+**기본 관리:**
+- `loex init [project]` - 프로젝트 초기화
+- `loex list` / `loex list [project]` - 프로젝트/서비스 목록
+- `loex remove [project]` - 프로젝트 삭제
+- `loex rename [old] [new]` - 프로젝트 이름 변경
+
+**서비스 설정:**
+- `loex config detect [project]` - 자동 감지 (권장)
+- `loex config wizard [project]` - 대화형 설정
+- `loex config [project] [service] [command]` - 수동 설정
+- `loex config edit [project] [service]` - 기존 설정 수정 
+- `loex config delete [project] [service]` - 서비스 삭제 
+
+**서비스 실행:**
+- `loex start [project]` - 모든 서비스 시작
+- `loex start [project] [service]` - 개별 서비스 시작
+- `loex stop [project]` - 모든 서비스 중지
+- `loex stop [project] [service]` - 개별 서비스 중지
+- `loex restart [project]` - 모든 서비스 재시작 
+- `loex status [project]` - 서비스 상태 확인
+
+**시스템:**
+- `loex update` - 최신 버전으로 업데이트
+
 ### Project Management
 
 ```bash
@@ -95,19 +118,20 @@ loex rename [old-name] [new-name]
 ### Service Configuration
 
 ```bash
-# Auto-detect services in current directory
+# Auto-detect services in current directory (recommended)
 loex config detect [project-name]
 
 # Interactive configuration wizard
 loex config wizard [project-name]
 
-# Set service manually (simplified syntax)
-loex config [project] [service] [command]
+# Manual configuration
+loex config [project-name] [service] [command]
 
-# Examples:
-loex config myapp frontend "npm start"
-loex config myapp backend "./gradlew bootRun"
-loex config myapp db "docker-compose up -d"
+# Edit existing service configuration 
+loex config edit [project-name] [service]
+
+# Delete service configuration 
+loex config delete [project-name] [service]
 ```
 
 ### Service Management
@@ -130,6 +154,9 @@ loex stop [project-name]
 
 # Stop specific service
 loex stop [project-name] [service-name]
+
+# Restart all services 
+loex restart [project-name]
 
 # Check service status
 loex status [project-name]
@@ -172,56 +199,39 @@ Loex automatically detects common project types and suggests appropriate command
 # Initialize project
 loex init webapp
 
-# Configure services
-loex config webapp frontend "npm start"
-loex config webapp backend "./gradlew bootRun"
-loex config webapp db "brew services start mysql"
+# Auto-detect services (recommended)
+cd /path/to/your/project
+loex config detect webapp
 
 # Start everything
 loex start webapp
 ```
 
-### Example 2: React + Spring Boot + Docker MySQL
+### Example 2: E-commerce Project Setup
 
 ```bash
-# Use auto-detection (run from project root directory)
-cd /path/to/your/project
-loex config detect ecommerce
-
-# Or use wizard for interactive setup
+# Initialize and configure with wizard
+loex init ecommerce
 loex config wizard ecommerce
 
-# Or configure manually
-loex config ecommerce frontend "npm run dev"
-loex config ecommerce backend "mvn spring-boot:run"
-loex config ecommerce db "docker run -d -p 3306:3306 -e MYSQL_ROOT_PASSWORD=password mysql:8.0"
+# Or use auto-detection (recommended)
+cd /path/to/your/project
+loex config detect ecommerce
 ```
 
-### Example 3: Local vs Docker Database Options
+### Example 3: Manual Configuration
 
 ```bash
-# Option A: Using Local Database
-loex init shop-local
-loex config shop-local frontend "npm run dev"
-loex config shop-local backend "./gradlew bootRun"
-loex config shop-local db "brew services start mysql"
+# Initialize project
+loex init myapp
 
-# Option B: Using Docker Database
-loex init shop-docker
-loex config shop-docker frontend "npm run dev"
-loex config shop-docker backend "./gradlew bootRun"
-loex config shop-docker db "docker-compose up -d"
+# Configure services manually
+loex config myapp frontend "npm start"
+loex config myapp backend "./gradlew bootRun"  
+loex config myapp db "brew services start mysql"
 
-# Option C: Using PostgreSQL
-loex init shop-postgres
-loex config shop-postgres frontend "npm start"
-loex config shop-postgres backend "mvn spring-boot:run"
-loex config shop-postgres db "docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=password postgres:15"
-
-# Start any environment
-loex start shop-local    # Local MySQL
-loex start shop-docker   # Docker MySQL
-loex start shop-postgres # Docker PostgreSQL
+# Start everything
+loex start myapp
 ```
 
 ## 📋 Additional Commands
@@ -258,11 +268,3 @@ Services: 3
     Command: ./gradlew bootRun
     Directory: /path/to/backend
 ```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request

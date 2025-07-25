@@ -5,7 +5,6 @@ import (
 )
 
 func TestRootCommand(t *testing.T) {
-	// Test that the root command can be executed
 	err := rootCmd.Execute()
 	if err != nil {
 		t.Errorf("Root command failed: %v", err)

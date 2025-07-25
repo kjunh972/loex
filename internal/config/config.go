@@ -106,7 +106,7 @@ func (m *Manager) ListProjects() ([]string, error) {
 	var projects []string
 	for _, file := range files {
 		if !file.IsDir() && filepath.Ext(file.Name()) == ".json" {
-			name := file.Name()[:len(file.Name())-5] // Remove .json extension
+			name := file.Name()[:len(file.Name())-5]
 			projects = append(projects, name)
 		}
 	}
@@ -124,17 +124,14 @@ func (m *Manager) DeleteProject(name string) error {
 	pidPath := m.GetPIDPath(name)
 	logsPath := m.GetLogsPath(name)
 
-	// Remove project file
 	if err := os.Remove(projectPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to delete project file: %w", err)
 	}
 
-	// Remove PID file
 	if err := os.Remove(pidPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to delete PID file: %w", err)
 	}
 
-	// Remove logs directory
 	if err := os.RemoveAll(logsPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to delete logs directory: %w", err)
 	}
@@ -151,19 +148,16 @@ func (m *Manager) RenameProject(oldName, newName string) error {
 		return fmt.Errorf("project '%s' already exists", newName)
 	}
 
-	// Load project
 	project, err := m.LoadProject(oldName)
 	if err != nil {
 		return err
 	}
 
-	// Update name and save to new location
 	project.Name = newName
 	if err := m.SaveProject(project); err != nil {
 		return err
 	}
 
-	// Move PID file if it exists
 	oldPIDPath := m.GetPIDPath(oldName)
 	newPIDPath := m.GetPIDPath(newName)
 	if _, err := os.Stat(oldPIDPath); err == nil {
@@ -172,7 +166,6 @@ func (m *Manager) RenameProject(oldName, newName string) error {
 		}
 	}
 
-	// Move logs directory if it exists
 	oldLogsPath := m.GetLogsPath(oldName)
 	newLogsPath := m.GetLogsPath(newName)
 	if _, err := os.Stat(oldLogsPath); err == nil {
@@ -181,7 +174,6 @@ func (m *Manager) RenameProject(oldName, newName string) error {
 		}
 	}
 
-	// Delete old project file
 	return os.Remove(m.GetProjectPath(oldName))
 }
 

@@ -38,12 +38,10 @@ func (m *Manager) StartService(projectName string, serviceType models.ServiceTyp
 		return fmt.Errorf("service %s not configured for project %s", serviceType, projectName)
 	}
 
-	// Check if already running
 	if isRunning, _ := m.IsServiceRunning(projectName, serviceType); isRunning {
 		return fmt.Errorf("service %s is already running for project %s", serviceType, projectName)
 	}
 
-	// Prepare command
 	parts := strings.Fields(service.Command)
 	if len(parts) == 0 {
 		return fmt.Errorf("empty command for service %s", serviceType)
@@ -52,39 +50,37 @@ func (m *Manager) StartService(projectName string, serviceType models.ServiceTyp
 	cmd := exec.Command(parts[0], parts[1:]...)
 	cmd.Dir = service.Dir
 
-	// Setup logging
 	logFile, err := m.logger.GetLogFile(projectName, serviceType)
 	if err != nil {
 		return fmt.Errorf("failed to create log file: %w", err)
 	}
-	// Don't defer close - let the process keep the file open
 
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 
-	// Set process group ID for better process management
-	// Note: Setsid can cause "operation not permitted" on macOS, using Setpgid instead
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true, // Create new process group (safer than Setsid)
+		Setpgid: true,
 	}
 
-	// Start the process
 	if err := cmd.Start(); err != nil {
-		logFile.Close() // Close only if start fails
+		logFile.Close()
 		return fmt.Errorf("failed to start service %s: %w", serviceType, err)
 	}
 
-	// Don't wait for the process - let it run in background
-	// The process will continue running independently
-
-	// Save PID
 	if err := m.savePID(projectName, serviceType, cmd.Process.Pid, service.Command); err != nil {
-		// Kill the process if we can't save PID
 		cmd.Process.Kill()
 		return fmt.Errorf("failed to save PID: %w", err)
 	}
 
 	fmt.Printf("Started %s service for project '%s' (PID: %d)\n", serviceType, projectName, cmd.Process.Pid)
+	
+	time.Sleep(500 * time.Millisecond)
+	if !m.isProcessRunning(cmd.Process.Pid) {
+		logPath := filepath.Join(m.logger.GetLogsDir(projectName), fmt.Sprintf("%s.log", serviceType))
+		fmt.Printf("Service '%s' failed to start (exited immediately)\n", serviceType)
+		fmt.Printf("Check logs: %s\n", logPath)
+	}
+	
 	return nil
 }
 
@@ -99,19 +95,14 @@ func (m *Manager) StopService(projectName string, serviceType models.ServiceType
 		return fmt.Errorf("no running process found for service %s", serviceType)
 	}
 
-	// Check if process still exists
 	if !isProcessRunning(processInfo.PID) {
-		// Clean up stale PID
 		delete(pids.Services, serviceType)
 		m.config.SaveProjectPIDs(pids)
 		return fmt.Errorf("process %d is not running", processInfo.PID)
 	}
 
-	// Kill the process group (to handle child processes like gradlew)
-	// Note: Setsid creates a new session with its own process group
 	pgid, err := syscall.Getpgid(processInfo.PID)
 	if err != nil {
-		// Fallback to individual process
 		process, err := os.FindProcess(processInfo.PID)
 		if err != nil {
 			return fmt.Errorf("failed to find process %d: %w", processInfo.PID, err)
@@ -120,16 +111,13 @@ func (m *Manager) StopService(projectName string, serviceType models.ServiceType
 			process.Kill()
 		}
 	} else {
-		// Kill the entire process group
 		if err := syscall.Kill(-pgid, syscall.SIGTERM); err != nil {
 			syscall.Kill(-pgid, syscall.SIGKILL)
 		}
 	}
 
-	// Wait a bit for graceful shutdown
 	time.Sleep(1 * time.Second)
 
-	// Remove from PID tracking
 	delete(pids.Services, serviceType)
 	if err := m.config.SaveProjectPIDs(pids); err != nil {
 		return fmt.Errorf("failed to update PID file: %w", err)
@@ -164,6 +152,15 @@ func (m *Manager) StopAllServices(projectName string) error {
 }
 
 func (m *Manager) GetServiceStatus(projectName string, serviceType models.ServiceType) (string, error) {
+	project, err := m.config.LoadProject(projectName)
+	if err == nil {
+		if service, exists := project.Services[serviceType]; exists {
+			if strings.Contains(service.Command, "brew services start") {
+				return m.getBrewServiceStatus(service.Command)
+			}
+		}
+	}
+
 	pids, err := m.config.LoadProjectPIDs(projectName)
 	if err != nil {
 		return "unknown", fmt.Errorf("failed to load PIDs: %w", err)
@@ -177,7 +174,6 @@ func (m *Manager) GetServiceStatus(projectName string, serviceType models.Servic
 	if isProcessRunning(processInfo.PID) {
 		return "running", nil
 	} else {
-		// Clean up stale PID
 		delete(pids.Services, serviceType)
 		m.config.SaveProjectPIDs(pids)
 		return "stopped", nil
@@ -275,10 +271,47 @@ func (m *Manager) GetLogs(projectName string, serviceType models.ServiceType, li
 		return nil, fmt.Errorf("failed to read log file: %w", err)
 	}
 
-	// Return last N lines
 	if lines > 0 && len(logLines) > lines {
 		return logLines[len(logLines)-lines:], nil
 	}
 
 	return logLines, nil
+}
+
+func (m *Manager) isProcessRunning(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	
+	err = process.Signal(syscall.Signal(0))
+	return err == nil
+}
+
+func (m *Manager) getBrewServiceStatus(command string) (string, error) {
+	parts := strings.Fields(command)
+	if len(parts) < 4 {
+		return "stopped", nil
+	}
+	
+	serviceName := parts[3]
+	
+	cmd := exec.Command("brew", "services", "list")
+	output, err := cmd.Output()
+	if err != nil {
+		return "stopped", nil
+	}
+	
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == serviceName {
+			if fields[1] == "started" {
+				return "running", nil
+			}
+			return "stopped", nil
+		}
+	}
+	
+	return "stopped", nil
 }
